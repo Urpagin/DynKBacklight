@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+sudo -v
+
+cargo build
+
+sudo ./target/debug/backlight_mic
