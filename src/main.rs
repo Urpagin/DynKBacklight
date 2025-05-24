@@ -1,8 +1,11 @@
 use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
-use std::thread::sleep;
+use std::process::exit;
+use std::thread::{self, sleep};
 use std::time::Duration;
+
+mod ui;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -11,11 +14,30 @@ const SAMPLE_RATE: u32 = 48_000;
 const CHUNK_SIZE: Duration = Duration::from_millis(50);
 
 fn main() {
+    thread::spawn(|| {
+        ui::run_ui();
+    });
+
     let host = cpal::default_host();
+
+    match host.input_devices() {
+        Ok(devices) => {
+            for (i, device) in devices.enumerate() {
+                match device.name() {
+                    Ok(name) => println!("{i}. {name}"),
+                    Err(e) => eprintln!("{i}. Error getting name: {e}"),
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to get input devices: {e}");
+        }
+    }
+
     let device = host
         .input_devices()
         .expect("Failed to get input devices")
-        .next()
+        .find(|d| d.name().map(|name| name.contains("NTUSB")).unwrap_or(false))
         .expect("No input devices available");
 
     println!("Using input device: {}", device.name().unwrap());
@@ -28,6 +50,9 @@ fn main() {
         .next()
         .expect("No supported config available")
         .with_sample_rate(cpal::SampleRate(SAMPLE_RATE));
+
+    println!("sampleformat: {}", supported_config.sample_format());
+    println!("samplerate:   {}", supported_config.sample_format());
 
     let mut buffer = Vec::new();
     // Sample rate * duration in seconds = number of samples in duration.
